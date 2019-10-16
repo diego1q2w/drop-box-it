@@ -22,4 +22,5 @@ const (
 	Created FileStatus = iota
 	Updated
 	Deleted
+	Synced
 )

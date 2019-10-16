@@ -14,8 +14,8 @@ func TestSyncFiles(t *testing.T) {
 		isDir               bool
 		listFiles           []domain.File
 		listingErr          error
-		initialFileStatus   map[domain.Path]domain.FileStatus
-		expectedFinalStatus map[domain.Path]domain.FileStatus
+		initialFileStatus   map[domain.Path]fileStatus
+		expectedFinalStatus map[domain.Path]fileStatus
 		expectedError       error
 	}{
 		"if path does not exists error expected": {
@@ -41,15 +41,30 @@ func TestSyncFiles(t *testing.T) {
 				{Path: "test3"},
 				{Path: "test4"},
 			},
-			initialFileStatus: map[domain.Path]domain.FileStatus{
-				"test1": domain.Created,
-				"test5": domain.Created,
+			initialFileStatus: map[domain.Path]fileStatus{
+				"test1": {
+					status: domain.Created,
+				},
+				"test5": {
+					status: domain.Created,
+				},
 			},
-			expectedFinalStatus: map[domain.Path]domain.FileStatus{
-				"test1": domain.Updated,
-				"test3": domain.Created,
-				"test4": domain.Created,
-				"test5": domain.Deleted,
+			expectedFinalStatus: map[domain.Path]fileStatus{
+				"test1": {
+					status: domain.Updated,
+					file:   domain.File{Path: "test1"},
+				},
+				"test3": {
+					status: domain.Created,
+					file:   domain.File{Path: "test3"},
+				},
+				"test4": {
+					status: domain.Created,
+					file:   domain.File{Path: "test4"},
+				},
+				"test5": {
+					status: domain.Deleted,
+				},
 			},
 		},
 	}
@@ -64,7 +79,9 @@ func TestSyncFiles(t *testing.T) {
 					return tc.existsPath, tc.isDir
 				},
 			}
-			dropper := NewDropper(fetcher)
+
+			boxClient := &boxClientMock{}
+			dropper := NewDropper(fetcher, boxClient)
 			dropper.filesStatus = tc.initialFileStatus
 
 			err := dropper.SyncFiles(context.Background(), "root")
@@ -72,7 +89,65 @@ func TestSyncFiles(t *testing.T) {
 				t.Errorf("exepected error: %s, got: %s", tc.expectedError, err)
 			}
 
-			assert.Equal(t, dropper.filesStatus, tc.expectedFinalStatus)
+			assert.Equal(t, tc.expectedFinalStatus, dropper.filesStatus)
 		})
 	}
+}
+
+func TestSendUpdatesFinalStateCorrect(t *testing.T) {
+	files := map[domain.Path]fileStatus{
+		"test1": {
+			status: domain.Updated,
+			file:   domain.File{Path: "test1"},
+		},
+		"test3": {
+			status: domain.Created,
+			file:   domain.File{Path: "test3"},
+		},
+		"test4": {
+			status: domain.Created,
+			file:   domain.File{Path: "test4"},
+		},
+		"test5": {
+			status: domain.Deleted,
+			file:   domain.File{Path: "test5"},
+		},
+		"test6": {
+			status: domain.Deleted,
+			file:   domain.File{Path: "test6"},
+		},
+	}
+	expected := map[domain.Path]fileStatus{
+		"test1": {
+			status: domain.Synced,
+			file:   domain.File{Path: "test1"},
+		},
+		"test3": {
+			status: domain.Synced,
+			file:   domain.File{Path: "test3"},
+		},
+		"test4": {
+			status: domain.Synced,
+			file:   domain.File{Path: "test4"},
+		},
+	}
+	fetcher := &fileFetcherMock{
+		ReadFileContentFunc: func(path domain.Path) (bytes []byte, e error) {
+			return []byte(`test`), nil
+		},
+	}
+
+	boxClient := &boxClientMock{
+		DeleteDocumentFunc: func(ctx context.Context, file domain.File, content []byte) error {
+			return nil
+		},
+		WriteDocumentFunc: func(ctx context.Context, file domain.File, content []byte) error {
+			return nil
+		},
+	}
+	dropper := NewDropper(fetcher, boxClient)
+	dropper.filesStatus = files
+
+	dropper.SendUpdates(context.Background())
+	assert.Equal(t, expected, dropper.filesStatus)
 }

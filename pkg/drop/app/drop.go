@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/diego1q2w/drop-box-it/pkg/drop/domain"
+	"log"
 	"sync"
 )
 
@@ -17,14 +18,26 @@ type fileFetcher interface {
 	PathExists(path domain.Path) (exists, isDir)
 }
 
-type Dropper struct {
-	fileFetcher fileFetcher
-	mux         sync.Mutex
-	filesStatus map[domain.Path]domain.FileStatus
+//go:generate moq -out box_client_mock_test.go . boxClient
+type boxClient interface {
+	WriteDocument(ctx context.Context, file domain.File, content []byte) error
+	DeleteDocument(ctx context.Context, file domain.File, content []byte) error
 }
 
-func NewDropper(fetcher fileFetcher) *Dropper {
-	return &Dropper{fileFetcher: fetcher}
+type fileStatus struct {
+	status domain.FileStatus
+	file   domain.File
+}
+
+type Dropper struct {
+	fileFetcher fileFetcher
+	boxClient   boxClient
+	mux         sync.Mutex
+	filesStatus map[domain.Path]fileStatus
+}
+
+func NewDropper(fetcher fileFetcher, boxClient boxClient) *Dropper {
+	return &Dropper{fileFetcher: fetcher, boxClient: boxClient}
 }
 
 func (d *Dropper) SyncFiles(ctx context.Context, rootPath domain.Path) error {
@@ -47,15 +60,23 @@ func (d *Dropper) updateFileStatuses(files []domain.File) {
 
 	for _, file := range files {
 		if _, ok := d.filesStatus[file.Path]; ok {
-			d.filesStatus[file.Path] = domain.Updated
+			d.filesStatus[file.Path] = fileStatus{
+				status: domain.Updated,
+				file:   file,
+			}
 		} else {
-			d.filesStatus[file.Path] = domain.Created
+			d.filesStatus[file.Path] = fileStatus{
+				status: domain.Created,
+				file:   file,
+			}
 		}
 	}
 
 	for path := range d.filesStatus {
 		if !containsPath(files, path) {
-			d.filesStatus[path] = domain.Deleted
+			fileStatus := d.filesStatus[path]
+			fileStatus.status = domain.Deleted
+			d.filesStatus[path] = fileStatus
 		}
 	}
 }
@@ -67,6 +88,88 @@ func containsPath(s []domain.File, e domain.Path) bool {
 		}
 	}
 	return false
+}
+
+func (d *Dropper) SendUpdates(ctx context.Context) {
+	paths := d.getPathsByStatus(domain.Created)
+	d.writeDocuments(ctx, paths)
+
+	paths = d.getPathsByStatus(domain.Updated)
+	d.writeDocuments(ctx, paths)
+
+	paths = d.getPathsByStatus(domain.Deleted)
+	d.deleteDocuments(ctx, paths)
+}
+
+func (d *Dropper) writeDocuments(ctx context.Context, files []domain.File) {
+	var wp sync.WaitGroup
+	for _, file := range files {
+		content, err := d.fileFetcher.ReadFileContent(file.Path)
+		if err != nil {
+			log.Printf("unable to fetch file content: %s", err)
+			return
+		}
+
+		wp.Add(1)
+		go func(file domain.File) {
+			defer wp.Done()
+			d.writeDocument(ctx, file, content)
+		}(file)
+	}
+	wp.Wait()
+}
+
+func (d *Dropper) writeDocument(ctx context.Context, file domain.File, content []byte) {
+	if err := d.boxClient.WriteDocument(ctx, file, content); err != nil {
+		log.Printf("error while writing document: %s", err)
+		return
+	}
+
+	d.mux.Lock()
+	defer d.mux.Unlock()
+	fileStatus := d.filesStatus[file.Path]
+	fileStatus.status = domain.Synced
+	d.filesStatus[file.Path] = fileStatus
+}
+
+func (d *Dropper) deleteDocuments(ctx context.Context, files []domain.File) {
+	var wp sync.WaitGroup
+	for _, file := range files {
+		wp.Add(1)
+		go func(file domain.File) {
+			defer wp.Done()
+			d.deleteDocument(ctx, file)
+		}(file)
+	}
+	wp.Wait()
+}
+
+func (d *Dropper) deleteDocument(ctx context.Context, file domain.File) {
+	if err := d.boxClient.DeleteDocument(ctx, file, nil); err != nil {
+		log.Printf("error while deleting document: %s", err)
+		return
+	}
+
+	d.mux.Lock()
+	defer d.mux.Unlock()
+	fileStatus := d.filesStatus[file.Path]
+	if fileStatus.status == domain.Deleted {
+		delete(d.filesStatus, file.Path)
+	}
+}
+
+func (d *Dropper) getPathsByStatus(fileStatus domain.FileStatus) []domain.File {
+	d.mux.Lock()
+	defer d.mux.Unlock()
+
+	var files []domain.File
+	for _, status := range d.filesStatus {
+		if status.status == fileStatus {
+			files = append(files, status.file)
+		}
+	}
+
+	return files
 }
 
 func (d *Dropper) validateRootPath(rootPath domain.Path) error {
