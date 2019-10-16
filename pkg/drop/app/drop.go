@@ -53,7 +53,7 @@ func (d *Dropper) updateFileStatuses(files []domain.File) {
 		}
 	}
 
-	for path, _ := range d.filesStatus {
+	for path := range d.filesStatus {
 		if !containsPath(files, path) {
 			d.filesStatus[path] = domain.Deleted
 		}
