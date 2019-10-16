@@ -1,0 +1,25 @@
+version: "3.7"
+
+services:
+  drop:
+    build: .
+    working_dir: /app
+    init: true
+    depends_on:
+      - box
+    volumes:
+      - .:/app
+      - pkg:/go/pkg
+    command: ["go", "run", "./cmd/drop"]
+
+  box:
+    build: .
+    working_dir: /app
+    init: true
+    volumes:
+      - .:/app
+      - pkg:/go/pkg
+    command: ["go", "run", "./cmd/box"]
+
+volumes:
+  pkg:
