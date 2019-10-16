@@ -2,11 +2,14 @@ package infra
 
 import (
 	"fmt"
-	"github.com/brainly/drop-box-it/pkg/drop/domain"
+	"github.com/diego1q2w/drop-box-it/pkg/drop/domain"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 )
+
+type isDir = bool
+type exists = bool
 
 type FileFetcher struct {
 }
@@ -41,4 +44,13 @@ func (f *FileFetcher) ReadFileContent(path domain.Path) ([]byte, error) {
 	}
 
 	return data, nil
+}
+
+func (f *FileFetcher) PathExists(path domain.Path) (exists, isDir) {
+	info, err := os.Stat(path.ToString())
+	if os.IsNotExist(err) {
+		return false, false
+	}
+
+	return true, info.IsDir()
 }
