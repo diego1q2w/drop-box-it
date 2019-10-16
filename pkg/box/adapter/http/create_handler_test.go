@@ -3,6 +3,7 @@ package http
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/diego1q2w/drop-box-it/pkg/box/domain"
 	"github.com/go-chi/chi"
 	"github.com/stretchr/testify/assert"
@@ -16,12 +17,14 @@ import (
 func TestCreateHandler(t *testing.T) {
 	testCases := map[string]struct {
 		file             string
+		path             string
 		serviceError     error
 		expectedStatus   int
 		expectedFile     domain.File
 		expectedResponse string
 	}{
 		"no error": {
+			path: "dGVzdC50eHQ=",
 			file: `{"content":"dGVzdDE=","path":"test.txt","mode":123}`,
 			expectedFile: domain.File{
 				Path:    "test.txt",
@@ -30,12 +33,19 @@ func TestCreateHandler(t *testing.T) {
 			},
 			expectedStatus: http.StatusCreated,
 		},
+		"error decoding": {
+			path:             "---=-000",
+			expectedStatus:   http.StatusBadRequest,
+			expectedResponse: `can't decode path`,
+		},
 		"error unmarshal": {
+			path:             "dGVzdC50eHQ=",
 			file:             `{not-good}`,
 			expectedStatus:   http.StatusBadRequest,
 			expectedResponse: `can't unmarshal body`,
 		},
 		"service error": {
+			path:           "dGVzdC50eHQ=",
 			file:           `{"content":"dGVzdDE=","path":"test.txt","mode":755}`,
 			serviceError:   errors.New("storage error"),
 			expectedStatus: http.StatusInternalServerError,
@@ -58,9 +68,9 @@ func TestCreateHandler(t *testing.T) {
 				},
 			}
 			handler := WriteDocumentHandler(boxer)
-			mux.Post("/document", handler)
+			mux.Post("/document/{path}", handler)
 
-			req := httptest.NewRequest(http.MethodPost, "/document", strings.NewReader(tc.file))
+			req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/document/%s", tc.path), strings.NewReader(tc.file))
 			w := httptest.NewRecorder()
 			mux.ServeHTTP(w, req)
 			resp := w.Result()

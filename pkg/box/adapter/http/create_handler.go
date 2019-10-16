@@ -2,8 +2,10 @@ package http
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"github.com/diego1q2w/drop-box-it/pkg/box/domain"
+	"github.com/go-chi/chi"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -18,12 +20,19 @@ type boxer interface {
 
 type createFile struct {
 	Content []byte `json:"content"`
-	Path    string `json:"path"`
 	Mode    uint32 `json:"mode"`
 }
 
 func WriteDocumentHandler(service boxer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		path64 := chi.URLParam(r, "path")
+
+		path, err := base64.StdEncoding.DecodeString(path64)
+		if err != nil {
+			http.Error(w, "can't decode path", http.StatusBadRequest)
+			return
+		}
+
 		body, err := ioutil.ReadAll(r.Body)
 		if err != nil {
 			http.Error(w, "can't read body", http.StatusBadRequest)
@@ -37,7 +46,7 @@ func WriteDocumentHandler(service boxer) http.HandlerFunc {
 		}
 
 		file := domain.File{
-			Path:    domain.Path(createFile.Path),
+			Path:    domain.Path(path),
 			Mode:    os.FileMode(createFile.Mode),
 			Content: createFile.Content,
 		}
