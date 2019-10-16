@@ -18,10 +18,16 @@ func TestCreateHandler(t *testing.T) {
 		file             string
 		serviceError     error
 		expectedStatus   int
+		expectedFile     domain.File
 		expectedResponse string
 	}{
 		"no error": {
-			file:           `{"content":"dGVzdDE=","path":"test.txt","mode":123}`,
+			file: `{"content":"dGVzdDE=","path":"test.txt","mode":123}`,
+			expectedFile: domain.File{
+				Path:    "test.txt",
+				Mode:    123,
+				Content: []byte("test1"),
+			},
 			expectedStatus: http.StatusCreated,
 		},
 		"error unmarshal": {
@@ -30,9 +36,14 @@ func TestCreateHandler(t *testing.T) {
 			expectedResponse: `can't unmarshal body`,
 		},
 		"service error": {
-			file:             `{"content":"dGVzdDE=","path":"test.txt","mode":755}`,
-			serviceError:     errors.New("storage error"),
-			expectedStatus:   http.StatusInternalServerError,
+			file:           `{"content":"dGVzdDE=","path":"test.txt","mode":755}`,
+			serviceError:   errors.New("storage error"),
+			expectedStatus: http.StatusInternalServerError,
+			expectedFile: domain.File{
+				Path:    "test.txt",
+				Mode:    755,
+				Content: []byte("test1"),
+			},
 			expectedResponse: "internal error",
 		},
 	}
@@ -42,6 +53,7 @@ func TestCreateHandler(t *testing.T) {
 			mux := chi.NewMux()
 			boxer := &boxerMock{
 				WriteDocumentsFunc: func(ctx context.Context, file domain.File) error {
+					assert.Equal(t, tc.expectedFile, file)
 					return tc.serviceError
 				},
 			}

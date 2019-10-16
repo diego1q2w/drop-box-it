@@ -10,7 +10,8 @@ import (
 )
 
 var (
-	lockboxerMockWriteDocuments sync.RWMutex
+	lockboxerMockDeleteDocuments sync.RWMutex
+	lockboxerMockWriteDocuments  sync.RWMutex
 )
 
 // Ensure, that boxerMock does implement boxer.
@@ -23,6 +24,9 @@ var _ boxer = &boxerMock{}
 //
 //         // make and configure a mocked boxer
 //         mockedboxer := &boxerMock{
+//             DeleteDocumentsFunc: func(ctx context.Context, path domain.Path) error {
+// 	               panic("mock out the DeleteDocuments method")
+//             },
 //             WriteDocumentsFunc: func(ctx context.Context, file domain.File) error {
 // 	               panic("mock out the WriteDocuments method")
 //             },
@@ -33,11 +37,21 @@ var _ boxer = &boxerMock{}
 //
 //     }
 type boxerMock struct {
+	// DeleteDocumentsFunc mocks the DeleteDocuments method.
+	DeleteDocumentsFunc func(ctx context.Context, path domain.Path) error
+
 	// WriteDocumentsFunc mocks the WriteDocuments method.
 	WriteDocumentsFunc func(ctx context.Context, file domain.File) error
 
 	// calls tracks calls to the methods.
 	calls struct {
+		// DeleteDocuments holds details about calls to the DeleteDocuments method.
+		DeleteDocuments []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Path is the path argument value.
+			Path domain.Path
+		}
 		// WriteDocuments holds details about calls to the WriteDocuments method.
 		WriteDocuments []struct {
 			// Ctx is the ctx argument value.
@@ -46,6 +60,41 @@ type boxerMock struct {
 			File domain.File
 		}
 	}
+}
+
+// DeleteDocuments calls DeleteDocumentsFunc.
+func (mock *boxerMock) DeleteDocuments(ctx context.Context, path domain.Path) error {
+	if mock.DeleteDocumentsFunc == nil {
+		panic("boxerMock.DeleteDocumentsFunc: method is nil but boxer.DeleteDocuments was just called")
+	}
+	callInfo := struct {
+		Ctx  context.Context
+		Path domain.Path
+	}{
+		Ctx:  ctx,
+		Path: path,
+	}
+	lockboxerMockDeleteDocuments.Lock()
+	mock.calls.DeleteDocuments = append(mock.calls.DeleteDocuments, callInfo)
+	lockboxerMockDeleteDocuments.Unlock()
+	return mock.DeleteDocumentsFunc(ctx, path)
+}
+
+// DeleteDocumentsCalls gets all the calls that were made to DeleteDocuments.
+// Check the length with:
+//     len(mockedboxer.DeleteDocumentsCalls())
+func (mock *boxerMock) DeleteDocumentsCalls() []struct {
+	Ctx  context.Context
+	Path domain.Path
+} {
+	var calls []struct {
+		Ctx  context.Context
+		Path domain.Path
+	}
+	lockboxerMockDeleteDocuments.RLock()
+	calls = mock.calls.DeleteDocuments
+	lockboxerMockDeleteDocuments.RUnlock()
+	return calls
 }
 
 // WriteDocuments calls WriteDocumentsFunc.

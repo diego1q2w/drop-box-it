@@ -9,7 +9,8 @@ import (
 )
 
 var (
-	lockfileBoxerMockWriteFile sync.RWMutex
+	lockfileBoxerMockDeleteFile sync.RWMutex
+	lockfileBoxerMockWriteFile  sync.RWMutex
 )
 
 // Ensure, that fileBoxerMock does implement fileBoxer.
@@ -22,6 +23,9 @@ var _ fileBoxer = &fileBoxerMock{}
 //
 //         // make and configure a mocked fileBoxer
 //         mockedfileBoxer := &fileBoxerMock{
+//             DeleteFileFunc: func(path domain.Path) error {
+// 	               panic("mock out the DeleteFile method")
+//             },
 //             WriteFileFunc: func(file domain.File) error {
 // 	               panic("mock out the WriteFile method")
 //             },
@@ -32,17 +36,56 @@ var _ fileBoxer = &fileBoxerMock{}
 //
 //     }
 type fileBoxerMock struct {
+	// DeleteFileFunc mocks the DeleteFile method.
+	DeleteFileFunc func(path domain.Path) error
+
 	// WriteFileFunc mocks the WriteFile method.
 	WriteFileFunc func(file domain.File) error
 
 	// calls tracks calls to the methods.
 	calls struct {
+		// DeleteFile holds details about calls to the DeleteFile method.
+		DeleteFile []struct {
+			// Path is the path argument value.
+			Path domain.Path
+		}
 		// WriteFile holds details about calls to the WriteFile method.
 		WriteFile []struct {
 			// File is the file argument value.
 			File domain.File
 		}
 	}
+}
+
+// DeleteFile calls DeleteFileFunc.
+func (mock *fileBoxerMock) DeleteFile(path domain.Path) error {
+	if mock.DeleteFileFunc == nil {
+		panic("fileBoxerMock.DeleteFileFunc: method is nil but fileBoxer.DeleteFile was just called")
+	}
+	callInfo := struct {
+		Path domain.Path
+	}{
+		Path: path,
+	}
+	lockfileBoxerMockDeleteFile.Lock()
+	mock.calls.DeleteFile = append(mock.calls.DeleteFile, callInfo)
+	lockfileBoxerMockDeleteFile.Unlock()
+	return mock.DeleteFileFunc(path)
+}
+
+// DeleteFileCalls gets all the calls that were made to DeleteFile.
+// Check the length with:
+//     len(mockedfileBoxer.DeleteFileCalls())
+func (mock *fileBoxerMock) DeleteFileCalls() []struct {
+	Path domain.Path
+} {
+	var calls []struct {
+		Path domain.Path
+	}
+	lockfileBoxerMockDeleteFile.RLock()
+	calls = mock.calls.DeleteFile
+	lockfileBoxerMockDeleteFile.RUnlock()
+	return calls
 }
 
 // WriteFile calls WriteFileFunc.

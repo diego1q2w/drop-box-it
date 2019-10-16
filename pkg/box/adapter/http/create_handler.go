@@ -13,6 +13,7 @@ import (
 //go:generate moq -out boxer_mock_test.go . boxer
 type boxer interface {
 	WriteDocuments(ctx context.Context, file domain.File) error
+	DeleteDocuments(ctx context.Context, path domain.Path) error
 }
 
 type createFile struct {
