@@ -23,7 +23,8 @@ func TestFileFetcher_ListFiles(t *testing.T) {
 		createFile(t, file, nil)
 	}
 
-	filesStored, err := ListFiles(domain.Path(rootDir))
+	fileFetcher := NewFileFetcher()
+	filesStored, err := fileFetcher.ListFiles(domain.Path(rootDir))
 	assert.NoError(t, err)
 
 	assert.Equal(t, files, filesStored)
@@ -42,10 +43,28 @@ func TestFileFetcher_IgnoreDirectories(t *testing.T) {
 		createFile(t, file, nil)
 	}
 
-	filesStored, err := ListFiles(domain.Path(rootDir))
+	fileFetcher := NewFileFetcher()
+	filesStored, err := fileFetcher.ListFiles(domain.Path(rootDir))
 	assert.NoError(t, err)
 
 	assert.Equal(t, files, filesStored)
+}
+
+func TestReadFileContent(t *testing.T) {
+	rootDir := "/tmp-drop-data"
+	removeDir(t, rootDir)
+	createDir(t, rootDir)
+	filePath := domain.Path(filepath.Join(rootDir, "test.txt"))
+	file := domain.File{Path: filePath, Mode: os.FileMode(0755)}
+	content := []byte(`this should work`)
+
+	createFile(t, file, content)
+
+	fileFetcher := NewFileFetcher()
+	storedContent, err := fileFetcher.ReadFileContent(filePath)
+	assert.NoError(t, err)
+
+	assert.Equal(t, content, storedContent)
 }
 
 func createDir(t *testing.T, path string) {
