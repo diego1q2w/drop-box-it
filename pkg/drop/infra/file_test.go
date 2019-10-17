@@ -12,8 +12,8 @@ import (
 func TestFileFetcher_ListFiles(t *testing.T) {
 	rootDir := "/tmp-drop-data"
 	files := []domain.File{
+		{Path: domain.Path(filepath.Join(rootDir, "lol", "test2.txt")), Mode: os.FileMode(0644)},
 		{Path: domain.Path(filepath.Join(rootDir, "test1.txt")), Mode: os.FileMode(0755)},
-		{Path: domain.Path(filepath.Join(rootDir, "test2.txt")), Mode: os.FileMode(0644)},
 		{Path: domain.Path(filepath.Join(rootDir, "test3.txt")), Mode: os.FileMode(0755)},
 		{Path: domain.Path(filepath.Join(rootDir, "test4.txt")), Mode: os.FileMode(0755)},
 	}
@@ -103,6 +103,11 @@ func createDir(t *testing.T, path string) {
 }
 
 func createFile(t *testing.T, file domain.File, data []byte) {
+	dir := filepath.Dir(file.Path.ToString())
+	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
+		t.Fatalf("unable to create dir: %s", err)
+	}
+
 	if err := ioutil.WriteFile(file.Path.ToString(), data, file.Mode); err != nil {
 		t.Fatalf("unable to create test file: %s", err)
 	}

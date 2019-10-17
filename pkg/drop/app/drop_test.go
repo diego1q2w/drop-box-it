@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/diego1q2w/drop-box-it/pkg/drop/domain"
 	"github.com/stretchr/testify/assert"
+	"path/filepath"
 	"testing"
 )
 
@@ -20,7 +21,7 @@ func TestSyncFiles(t *testing.T) {
 	}{
 		"if path does not exists error expected": {
 			existsPath:    false,
-			expectedError: fmt.Errorf("the path 'root' does not exists"),
+			expectedError: fmt.Errorf("the path '/root' does not exists"),
 		},
 		"if path is not a directory error expected": {
 			existsPath:    true,
@@ -73,7 +74,13 @@ func TestSyncFiles(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			fetcher := &fileFetcherMock{
 				ListFilesFunc: func(root domain.Path) (files []domain.File, e error) {
-					return tc.listFiles, tc.listingErr
+					var listFiles []domain.File
+					for _, file := range tc.listFiles {
+						file.Path = domain.Path(filepath.Join(root.ToString(), file.Path.ToString()))
+						listFiles = append(listFiles, file)
+					}
+
+					return listFiles, tc.listingErr
 				},
 				PathExistsFunc: func(path domain.Path) (b bool, b2 bool) {
 					return tc.existsPath, tc.isDir
@@ -81,7 +88,7 @@ func TestSyncFiles(t *testing.T) {
 			}
 
 			boxClient := &boxClientMock{}
-			dropper := NewDropper(fetcher, boxClient, "root")
+			dropper := NewDropper(fetcher, boxClient, "/root")
 			dropper.filesStatus = tc.initialFileStatus
 
 			err := dropper.SyncFiles(context.Background())

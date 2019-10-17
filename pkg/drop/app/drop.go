@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/diego1q2w/drop-box-it/pkg/drop/domain"
 	"log"
+	"path/filepath"
 	"sync"
 )
 
@@ -47,7 +48,7 @@ func NewDropper(fetcher fileFetcher, boxClient boxClient, rootPath string) *Drop
 }
 
 func (d *Dropper) SyncFiles(ctx context.Context) error {
-	if err := d.validateRootPath(d.rootPath); err != nil {
+	if err := d.validateRootPath(); err != nil {
 		return err
 	}
 
@@ -65,6 +66,7 @@ func (d *Dropper) updateFileStatuses(files []domain.File) {
 	defer d.mux.Unlock()
 
 	for _, file := range files {
+		file.Path = file.Path.RemoveBasePath(d.rootPath)
 		if _, ok := d.filesStatus[file.Path]; ok {
 			d.filesStatus[file.Path] = fileStatus{
 				status: domain.Updated,
@@ -79,7 +81,7 @@ func (d *Dropper) updateFileStatuses(files []domain.File) {
 	}
 
 	for path := range d.filesStatus {
-		if !containsPath(files, path) {
+		if !d.containsPath(files, path) {
 			fileStatus := d.filesStatus[path]
 			fileStatus.status = domain.Deleted
 			d.filesStatus[path] = fileStatus
@@ -87,9 +89,10 @@ func (d *Dropper) updateFileStatuses(files []domain.File) {
 	}
 }
 
-func containsPath(s []domain.File, e domain.Path) bool {
-	for _, a := range s {
-		if a.Path == e {
+func (d *Dropper) containsPath(files []domain.File, path domain.Path) bool {
+	for _, file := range files {
+		file.Path = file.Path.RemoveBasePath(d.rootPath)
+		if file.Path == path {
 			return true
 		}
 	}
@@ -110,7 +113,7 @@ func (d *Dropper) SendUpdates(ctx context.Context) {
 func (d *Dropper) writeDocuments(ctx context.Context, files []domain.File) {
 	var wp sync.WaitGroup
 	for _, file := range files {
-		content, err := d.fileFetcher.ReadFileContent(file.Path)
+		content, err := d.fileFetcher.ReadFileContent(file.Path.WithRoot(d.rootPath))
 		if err != nil {
 			log.Printf("unable to fetch file content: %s", err)
 			return
@@ -178,15 +181,21 @@ func (d *Dropper) getPathsByStatus(fileStatus domain.FileStatus) []domain.File {
 	return files
 }
 
-func (d *Dropper) validateRootPath(rootPath domain.Path) error {
-	exists, isDir := d.fileFetcher.PathExists(rootPath)
+func (d *Dropper) validateRootPath() error {
+	rootAbs, err := filepath.Abs(d.rootPath.ToString())
+	if err != nil {
+		return fmt.Errorf("unable to get absolut path from %s", d.rootPath)
+	}
+
+	exists, isDir := d.fileFetcher.PathExists(domain.Path(rootAbs))
 	if !exists {
-		return fmt.Errorf("the path '%s' does not exists", rootPath)
+		return fmt.Errorf("the path '%s' does not exists", d.rootPath)
 	}
 
 	if !isDir {
 		return fmt.Errorf("the path priovided is not a directory")
 	}
 
+	d.rootPath = domain.Path(rootAbs)
 	return nil
 }
