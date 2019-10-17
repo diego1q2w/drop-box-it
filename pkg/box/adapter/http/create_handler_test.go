@@ -25,11 +25,11 @@ func TestCreateHandler(t *testing.T) {
 	}{
 		"no error": {
 			path: "dGVzdC50eHQ=",
-			file: `{"content":"dGVzdDE=","path":"test.txt","mode":123}`,
+			file: "\x1f\x8b\b\x00\x00\x00\x00\x00\x00\xff\xaaVJ\xce\xcf+I\xcd+Q\xb2RJq\x0f\xabJqv\xaaJ22\xccIq\xcf(H\xcaM\xb6U\xd2Q\xca\xcdOIU\xb2254\xac\x05\x04\x00\x00\xff\xffg\u007f\xd4|-\x00\x00\x00",
 			expectedFile: domain.File{
 				Path:    "test.txt",
-				Mode:    123,
-				Content: []byte("test1"),
+				Mode:    0777,
+				Content: []byte("test something"),
 			},
 			expectedStatus: http.StatusCreated,
 		},
@@ -38,21 +38,27 @@ func TestCreateHandler(t *testing.T) {
 			expectedStatus:   http.StatusBadRequest,
 			expectedResponse: `can't decode path`,
 		},
+		"error un compressing": {
+			path:             "dGVzdC50eHQ=",
+			file:             "foo",
+			expectedStatus:   http.StatusBadRequest,
+			expectedResponse: `can't read gzip body`,
+		},
 		"error unmarshal": {
 			path:             "dGVzdC50eHQ=",
-			file:             `{not-good}`,
+			file:             "\x1f\x8b\b\x00\x00\x00\x00\x00\x00\xff\xaa\xce\xcb/\xd1M\xcf\xcfO\xa9\x05\x04\x00\x00\xff\xff\xdf\u007f\xa5\xf7\n\x00\x00\x00",
 			expectedStatus:   http.StatusBadRequest,
 			expectedResponse: `can't unmarshal body`,
 		},
 		"service error": {
 			path:           "dGVzdC50eHQ=",
-			file:           `{"content":"dGVzdDE=","path":"test.txt","mode":755}`,
+			file:           "\x1f\x8b\b\x00\x00\x00\x00\x00\x00\xff\xaaVJ\xce\xcf+I\xcd+Q\xb2RJq\x0f\xabJqv\xaaJ22\xccIq\xcf(H\xcaM\xb6U\xd2Q\xca\xcdOIU\xb2254\xac\x05\x04\x00\x00\xff\xffg\u007f\xd4|-\x00\x00\x00",
 			serviceError:   errors.New("storage error"),
 			expectedStatus: http.StatusInternalServerError,
 			expectedFile: domain.File{
 				Path:    "test.txt",
-				Mode:    755,
-				Content: []byte("test1"),
+				Mode:    0777,
+				Content: []byte("test something"),
 			},
 			expectedResponse: "internal error",
 		},
@@ -71,6 +77,8 @@ func TestCreateHandler(t *testing.T) {
 			mux.Post("/document/{path}", handler)
 
 			req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/document/%s", tc.path), strings.NewReader(tc.file))
+			req.Header.Set("Content-Encoding", "gzip")
+
 			w := httptest.NewRecorder()
 			mux.ServeHTTP(w, req)
 			resp := w.Result()

@@ -15,6 +15,8 @@ To see it in action run the command `./script/start` wait a few seconds, you'll 
 within the src directory got synchronized to the destination one, and if you add, change or remove any of the files you'll see how they get synchronized too. 
 Feel free of course to use any `src` directory is a CLI after all, you can update that value from the `docker-compose.yml` and then in the `drop` service update the `command`.
 
+The body of the request is compressed in order to safe band width.
+
 ### Run
 
 In order to run tests and linting
@@ -30,4 +32,5 @@ If you want to see it in action
 
 - Add graceful shutdown
 - Add another endpoint in the `box` service for file sync
-- Add the possibility to sync different clients with diferent folders at the same time by namespacing the destination folder and having some kind of token to identify the client
+- Add the possibility to sync different clients with different folders at the same time by namespacing the destination folder and having some kind of token to identify the client
+- Only compress the body if is too large and be able to abstract the uncompress on the server side 
