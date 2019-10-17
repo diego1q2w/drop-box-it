@@ -3,14 +3,13 @@ package cli
 import (
 	"context"
 	"fmt"
-	"github.com/diego1q2w/drop-box-it/pkg/drop/domain"
 	"log"
 	"time"
 )
 
 //go:generate moq -out dropper_mock_test.go . dropper
 type dropper interface {
-	SyncFiles(ctx context.Context, rootPath domain.Path) error
+	SyncFiles(ctx context.Context) error
 	SendUpdates(ctx context.Context)
 }
 
@@ -22,16 +21,16 @@ func NewDropCLI(dropper dropper) *DropCLI {
 	return &DropCLI{dropper: dropper}
 }
 
-func (d *DropCLI) Run(ctx context.Context, rootPath string) error {
-	if err := d.runSync(ctx, rootPath); err != nil {
+func (d *DropCLI) Run(ctx context.Context) error {
+	if err := d.runSync(ctx); err != nil {
 		return err
 	}
 	d.runUpdate(ctx)
 	return nil
 }
 
-func (d *DropCLI) runSync(ctx context.Context, rootPath string) error {
-	if err := d.dropper.SyncFiles(ctx, domain.Path(rootPath)); err != nil {
+func (d *DropCLI) runSync(ctx context.Context) error {
+	if err := d.dropper.SyncFiles(ctx); err != nil {
 		return fmt.Errorf("unable to start sync cli: %w", err)
 	}
 
@@ -42,7 +41,7 @@ func (d *DropCLI) runSync(ctx context.Context, rootPath string) error {
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
-				if err := d.dropper.SyncFiles(ctx, domain.Path(rootPath)); err != nil {
+				if err := d.dropper.SyncFiles(ctx); err != nil {
 					log.Printf("unexpected error while running sync cli: %s", err)
 				}
 			}

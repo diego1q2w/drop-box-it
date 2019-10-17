@@ -81,10 +81,10 @@ func TestSyncFiles(t *testing.T) {
 			}
 
 			boxClient := &boxClientMock{}
-			dropper := NewDropper(fetcher, boxClient)
+			dropper := NewDropper(fetcher, boxClient, "root")
 			dropper.filesStatus = tc.initialFileStatus
 
-			err := dropper.SyncFiles(context.Background(), "root")
+			err := dropper.SyncFiles(context.Background())
 			if fmt.Sprintf("%v", err) != fmt.Sprintf("%v", tc.expectedError) {
 				t.Errorf("exepected error: %s, got: %s", tc.expectedError, err)
 			}
@@ -145,7 +145,7 @@ func TestSendUpdatesFinalStateCorrect(t *testing.T) {
 			return nil
 		},
 	}
-	dropper := NewDropper(fetcher, boxClient)
+	dropper := NewDropper(fetcher, boxClient, "")
 	dropper.filesStatus = files
 
 	dropper.SendUpdates(context.Background())

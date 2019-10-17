@@ -16,18 +16,18 @@ func main() {
 		log.Fatal("BOX_URL env variable is required")
 	}
 
-	boxClient := infra.NewBoxClient(http.DefaultClient, url)
-	fileFetcher := infra.NewFileFetcher()
-
-	dropApp := app.NewDropper(fileFetcher, boxClient)
-	cliDrop := cli.NewDropCLI(dropApp)
-
 	if len(os.Args) == 0 {
 		log.Fatal("One argument is required which is the directory path you wish to sync")
 	}
 
+	boxClient := infra.NewBoxClient(http.DefaultClient, url)
+	fileFetcher := infra.NewFileFetcher()
+
+	dropApp := app.NewDropper(fileFetcher, boxClient, os.Args[1])
+	cliDrop := cli.NewDropCLI(dropApp)
+
 	ctx := context.Background()
-	err := cliDrop.Run(ctx, os.Args[1])
+	err := cliDrop.Run(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}

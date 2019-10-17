@@ -33,23 +33,25 @@ type Dropper struct {
 	fileFetcher fileFetcher
 	boxClient   boxClient
 	mux         sync.Mutex
+	rootPath    domain.Path
 	filesStatus map[domain.Path]fileStatus
 }
 
-func NewDropper(fetcher fileFetcher, boxClient boxClient) *Dropper {
+func NewDropper(fetcher fileFetcher, boxClient boxClient, rootPath string) *Dropper {
 	return &Dropper{
 		fileFetcher: fetcher,
 		boxClient:   boxClient,
+		rootPath:    domain.Path(rootPath),
 		filesStatus: make(map[domain.Path]fileStatus),
 	}
 }
 
-func (d *Dropper) SyncFiles(ctx context.Context, rootPath domain.Path) error {
-	if err := d.validateRootPath(rootPath); err != nil {
+func (d *Dropper) SyncFiles(ctx context.Context) error {
+	if err := d.validateRootPath(d.rootPath); err != nil {
 		return err
 	}
 
-	files, err := d.fileFetcher.ListFiles(rootPath)
+	files, err := d.fileFetcher.ListFiles(d.rootPath)
 	if err != nil {
 		return fmt.Errorf("error while listing files: %w", err)
 	}
