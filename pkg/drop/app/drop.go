@@ -66,7 +66,7 @@ func (d *Dropper) SyncFiles(ctx context.Context) error {
 func (d *Dropper) fetchContent(files []domain.File) []domain.File {
 	var fileWithContent []domain.File
 	for _, file := range files {
-		content, err := d.fileFetcher.ReadFileContent(file.Path.WithRoot(d.rootPath))
+		content, err := d.fileFetcher.ReadFileContent(file.Path)
 		if err != nil {
 			log.Printf("unable to fetch file content: %s", err)
 			continue

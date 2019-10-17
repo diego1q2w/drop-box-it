@@ -22,6 +22,7 @@ func NewDropCLI(dropper dropper) *DropCLI {
 }
 
 func (d *DropCLI) Run(ctx context.Context) error {
+	log.Println("Starting dropper...")
 	if err := d.runSync(ctx); err != nil {
 		return err
 	}

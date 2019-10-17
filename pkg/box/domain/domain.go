@@ -13,3 +13,10 @@ type File struct {
 	Mode    os.FileMode
 	Content []byte
 }
+
+type Action int
+
+const (
+	Write Action = iota
+	Delete
+)

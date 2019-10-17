@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/OneOfOne/xxhash"
 	boxHttp "github.com/diego1q2w/drop-box-it/pkg/box/adapter/http"
 	"github.com/diego1q2w/drop-box-it/pkg/box/app"
 	"github.com/diego1q2w/drop-box-it/pkg/box/infra"
@@ -9,11 +10,14 @@ import (
 	"net/http"
 )
 
-const rootDir = "./destDir"
+const (
+	rootDir      = "./destDir"
+	numOfWorkers = 10
+)
 
 func main() {
 	file := infra.NewFileBox()
-	service := app.NewBox(file, rootDir)
+	service := app.NewBox(file, xxHash, rootDir, numOfWorkers)
 	writeHandler := boxHttp.WriteDocumentHandler(service)
 	deleteHandler := boxHttp.DeleteDocumentHandler(service)
 
@@ -25,4 +29,8 @@ func main() {
 	if err := http.ListenAndServe("0.0.0.0:80", mux); err != nil {
 		log.Fatalf("unable to start the server: %s", err)
 	}
+}
+
+func xxHash(s string) uint64 {
+	return xxhash.Checksum64([]byte(s))
 }
