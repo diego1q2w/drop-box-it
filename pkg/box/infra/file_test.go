@@ -13,7 +13,7 @@ func TestWriteFile(t *testing.T) {
 	rootDir := "/testdatabox"
 	createDir(t, rootDir)
 	file := domain.File{
-		Path:    domain.Path(filepath.Join(rootDir, "test.txt")),
+		Path:    domain.Path(filepath.Join(rootDir, "hi", "test.txt")),
 		Mode:    0755,
 		Content: []byte(`heey this rocksa`),
 	}

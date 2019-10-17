@@ -37,7 +37,11 @@ type Dropper struct {
 }
 
 func NewDropper(fetcher fileFetcher, boxClient boxClient) *Dropper {
-	return &Dropper{fileFetcher: fetcher, boxClient: boxClient}
+	return &Dropper{
+		fileFetcher: fetcher,
+		boxClient:   boxClient,
+		filesStatus: make(map[domain.Path]fileStatus),
+	}
 }
 
 func (d *Dropper) SyncFiles(ctx context.Context, rootPath domain.Path) error {

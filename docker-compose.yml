@@ -7,10 +7,12 @@ services:
     init: true
     depends_on:
       - box
+    environment:
+      BOX_URL: http://box
     volumes:
       - .:/app
       - pkg:/go/pkg
-    command: ["go", "run", "./cmd/drop"]
+    command: ["go", "run", "./cmd/drop", "./srcDir"]
 
   box:
     build: .
