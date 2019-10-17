@@ -57,8 +57,26 @@ func (d *Dropper) SyncFiles(ctx context.Context) error {
 		return fmt.Errorf("error while listing files: %w", err)
 	}
 
+	files = d.fetchContent(files)
+
 	d.updateFileStatuses(files)
 	return nil
+}
+
+func (d *Dropper) fetchContent(files []domain.File) []domain.File {
+	var fileWithContent []domain.File
+	for _, file := range files {
+		content, err := d.fileFetcher.ReadFileContent(file.Path.WithRoot(d.rootPath))
+		if err != nil {
+			log.Printf("unable to fetch file content: %s", err)
+			continue
+		}
+
+		file.Content = domain.Content(content).Hash()
+		fileWithContent = append(fileWithContent, file)
+	}
+
+	return fileWithContent
 }
 
 func (d *Dropper) updateFileStatuses(files []domain.File) {
@@ -68,6 +86,10 @@ func (d *Dropper) updateFileStatuses(files []domain.File) {
 	for _, file := range files {
 		file.Path = file.Path.RemoveBasePath(d.rootPath)
 		if _, ok := d.filesStatus[file.Path]; ok {
+			if file.Equal(d.filesStatus[file.Path].file) {
+				continue
+			}
+
 			d.filesStatus[file.Path] = fileStatus{
 				status: domain.Updated,
 				file:   file,

@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
 	"github.com/diego1q2w/drop-box-it/pkg/drop/domain"
 	"github.com/stretchr/testify/assert"
@@ -41,6 +42,7 @@ func TestSyncFiles(t *testing.T) {
 				{Path: "test1"},
 				{Path: "test3"},
 				{Path: "test4"},
+				{Path: "test6"},
 			},
 			initialFileStatus: map[domain.Path]fileStatus{
 				"test1": {
@@ -49,22 +51,36 @@ func TestSyncFiles(t *testing.T) {
 				"test5": {
 					status: domain.Created,
 				},
+				"test6": {
+					status: domain.Synced,
+					file: domain.File{
+						Path:    "test6",
+						Content: sha256.Sum256([]byte(`test`)),
+					},
+				},
 			},
 			expectedFinalStatus: map[domain.Path]fileStatus{
 				"test1": {
 					status: domain.Updated,
-					file:   domain.File{Path: "test1"},
+					file:   domain.File{Path: "test1", Content: sha256.Sum256([]byte(`test`))},
 				},
 				"test3": {
 					status: domain.Created,
-					file:   domain.File{Path: "test3"},
+					file:   domain.File{Path: "test3", Content: sha256.Sum256([]byte(`test`))},
 				},
 				"test4": {
 					status: domain.Created,
-					file:   domain.File{Path: "test4"},
+					file:   domain.File{Path: "test4", Content: sha256.Sum256([]byte(`test`))},
 				},
 				"test5": {
 					status: domain.Deleted,
+				},
+				"test6": {
+					status: domain.Synced,
+					file: domain.File{
+						Path:    "test6",
+						Content: sha256.Sum256([]byte(`test`)),
+					},
 				},
 			},
 		},
@@ -84,6 +100,9 @@ func TestSyncFiles(t *testing.T) {
 				},
 				PathExistsFunc: func(path domain.Path) (b bool, b2 bool) {
 					return tc.existsPath, tc.isDir
+				},
+				ReadFileContentFunc: func(path domain.Path) (bytes []byte, e error) {
+					return []byte(`test`), nil
 				},
 			}
 

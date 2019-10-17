@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -26,9 +27,14 @@ func (p Path) ToBytes() []byte {
 	return []byte(p)
 }
 
+type Content []byte
+
+type HashContent [32]byte
+
 type File struct {
-	Path Path
-	Mode os.FileMode
+	Path    Path
+	Mode    os.FileMode
+	Content HashContent
 }
 
 type FileStatus int
@@ -39,3 +45,11 @@ const (
 	Deleted
 	Synced
 )
+
+func (c Content) Hash() HashContent {
+	return sha256.Sum256(c)
+}
+
+func (f File) Equal(file File) bool {
+	return f.Content == file.Content
+}
