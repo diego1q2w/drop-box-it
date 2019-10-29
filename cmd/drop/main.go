@@ -20,7 +20,8 @@ func main() {
 		log.Fatal("One argument is required which is the directory path you wish to sync")
 	}
 
-	boxClient := infra.NewBoxClient(http.DefaultClient, url)
+	client := infra.NewClientCompress(http.DefaultClient)
+	boxClient := infra.NewBoxClient(client, url)
 	fileFetcher := infra.NewFileFetcher()
 
 	dropApp := app.NewDropper(fileFetcher, boxClient, os.Args[1])

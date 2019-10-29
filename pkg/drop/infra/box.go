@@ -2,7 +2,6 @@ package infra
 
 import (
 	"bytes"
-	"compress/gzip"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -55,16 +54,10 @@ func (c *BoxClient) WriteDocument(ctx context.Context, file domain.File, content
 		return fmt.Errorf("error while marshalling body: %w", err)
 	}
 
-	body, err = c.compress(body)
-	if err != nil {
-		return fmt.Errorf("error while marshalling body: %w", err)
-	}
-
 	req, err := http.NewRequest(http.MethodPost, uri, bytes.NewReader(body))
 	if err != nil {
 		return fmt.Errorf("error while creating request: %w", err)
 	}
-	req.Header.Set("Content-Encoding", "gzip")
 
 	res, err := c.requester.Do(req.WithContext(ctx))
 	if err != nil {
@@ -76,18 +69,6 @@ func (c *BoxClient) WriteDocument(ctx context.Context, file domain.File, content
 	}
 
 	return nil
-}
-
-func (c *BoxClient) compress(content []byte) ([]byte, error) {
-	var contentWriter bytes.Buffer
-	gz := gzip.NewWriter(&contentWriter)
-	if _, err := gz.Write(content); err != nil {
-		return nil, fmt.Errorf("unable to compress content: %w", err)
-	}
-
-	gz.Close()
-
-	return contentWriter.Bytes(), nil
 }
 
 func (c *BoxClient) DeleteDocument(ctx context.Context, file domain.File, content []byte) error {
