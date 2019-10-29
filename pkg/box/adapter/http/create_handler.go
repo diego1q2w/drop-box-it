@@ -1,7 +1,6 @@
 package http
 
 import (
-	"compress/gzip"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -35,19 +34,13 @@ func WriteDocumentHandler(service boxer) http.HandlerFunc {
 			return
 		}
 
-		body, err := gzip.NewReader(r.Body)
+		payload, err := ioutil.ReadAll(r.Body)
 		if err != nil {
-			fmt.Println(err)
-			http.Error(w, "can't read gzip body", http.StatusBadRequest)
-			return
-		}
-		defer body.Close()
-
-		payload, err := ioutil.ReadAll(body)
-		if err != nil {
+			log.Println(fmt.Sprintf("error reading body: %v", err))
 			http.Error(w, "can't read body", http.StatusBadRequest)
 			return
 		}
+		defer r.Body.Close()
 
 		var createFile createFile
 		if err := json.Unmarshal(payload, &createFile); err != nil {

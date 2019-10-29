@@ -27,12 +27,11 @@ func (c *ClientCompress) Do(req *http.Request) (*http.Response, error) {
 		return nil, err
 	}
 
-	req.Header.Set("Content-Encoding", "gzip")
-
 	req, err = http.NewRequest(req.Method, req.URL.String(), bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("error while creating compress request: %w", err)
 	}
+	req.Header.Set("Content-Encoding", "gzip")
 
 	return c.client.Do(req)
 }
@@ -44,7 +43,9 @@ func (c *ClientCompress) compress(content []byte) ([]byte, error) {
 		return nil, fmt.Errorf("unable to compress body: %w", err)
 	}
 
-	gz.Close()
+	if err := gz.Close(); err != nil {
+		return nil, fmt.Errorf("unable to close compressor: %w", err)
+	}
 
 	return contentWriter.Bytes(), nil
 }

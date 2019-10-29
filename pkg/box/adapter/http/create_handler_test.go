@@ -25,7 +25,7 @@ func TestCreateHandler(t *testing.T) {
 	}{
 		"no error": {
 			path: "dGVzdC50eHQ=",
-			file: "\x1f\x8b\b\x00\x00\x00\x00\x00\x00\xff\xaaVJ\xce\xcf+I\xcd+Q\xb2RJq\x0f\xabJqv\xaaJ22\xccIq\xcf(H\xcaM\xb6U\xd2Q\xca\xcdOIU\xb2254\xac\x05\x04\x00\x00\xff\xffg\u007f\xd4|-\x00\x00\x00",
+			file: `{"content":"dGVzdCBzb21ldGhpbmc=", "mode":511}`,
 			expectedFile: domain.File{
 				Path:    "test.txt",
 				Mode:    0777,
@@ -38,21 +38,15 @@ func TestCreateHandler(t *testing.T) {
 			expectedStatus:   http.StatusBadRequest,
 			expectedResponse: `can't decode path`,
 		},
-		"error un compressing": {
-			path:             "dGVzdC50eHQ=",
-			file:             "foo",
-			expectedStatus:   http.StatusBadRequest,
-			expectedResponse: `can't read gzip body`,
-		},
 		"error unmarshal": {
 			path:             "dGVzdC50eHQ=",
-			file:             "\x1f\x8b\b\x00\x00\x00\x00\x00\x00\xff\xaa\xce\xcb/\xd1M\xcf\xcfO\xa9\x05\x04\x00\x00\xff\xff\xdf\u007f\xa5\xf7\n\x00\x00\x00",
+			file:             `{baaad}`,
 			expectedStatus:   http.StatusBadRequest,
 			expectedResponse: `can't unmarshal body`,
 		},
 		"service error": {
 			path:           "dGVzdC50eHQ=",
-			file:           "\x1f\x8b\b\x00\x00\x00\x00\x00\x00\xff\xaaVJ\xce\xcf+I\xcd+Q\xb2RJq\x0f\xabJqv\xaaJ22\xccIq\xcf(H\xcaM\xb6U\xd2Q\xca\xcdOIU\xb2254\xac\x05\x04\x00\x00\xff\xffg\u007f\xd4|-\x00\x00\x00",
+			file:           `{"content":"dGVzdCBzb21ldGhpbmc=", "mode":511}`,
 			serviceError:   errors.New("storage error"),
 			expectedStatus: http.StatusInternalServerError,
 			expectedFile: domain.File{

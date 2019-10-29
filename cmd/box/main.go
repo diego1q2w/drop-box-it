@@ -19,6 +19,7 @@ func main() {
 	file := infra.NewFileBox()
 	service := app.NewBox(file, xxHash, rootDir, numOfWorkers)
 	writeHandler := boxHttp.WriteDocumentHandler(service)
+	writeHandler = boxHttp.UncompressHandler(writeHandler)
 	deleteHandler := boxHttp.DeleteDocumentHandler(service)
 
 	mux := chi.NewMux()
